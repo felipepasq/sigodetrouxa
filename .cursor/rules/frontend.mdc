@@ -1,0 +1,151 @@
+---
+description: Frontend engineering rules for Sigo de Trouxa, a privacy-first Instagram follower comparison app.
+globs:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "src/**/*.css"
+alwaysApply: false
+---
+
+# Frontend Engineering Rules — Sigo de Trouxa
+
+## Product and stack
+
+Sigo de Trouxa compares Instagram data exports to identify accounts the user follows that do not follow them back. It processes data locally in the browser, without requiring Instagram credentials.
+
+Stack: React, Vite, TypeScript, TanStack Router, Zod, Tailwind CSS, shadcn/ui.
+
+Prioritize accuracy, privacy, accessibility, responsive behavior, clarity, maintainability, and a playful Brazilian tone. Humor must not obscure warnings or results.
+
+Do not add a backend, authentication, database, TanStack Query, React Hook Form, or global state library without a concrete need. Introduce a maintained ZIP reader when necessary.
+
+## Architecture
+
+Organize business code by feature under `src/features/<domain>/`, using only directories that serve a current responsibility.
+
+Potential domains:
+- `instagram-import`: ZIP/JSON upload, extraction, format validation;
+- `follow-analysis`: normalization, comparison, counts, integrity checks;
+- `analysis-results`: display, search, sorting, export.
+
+These are examples, not directories to create automatically. Keep genuinely generic primitives under `src/components/ui` and application shell components under `src/components/layout`. Shared code must not depend on Instagram-specific behavior. Avoid generic global `services`, `utils`, or `hooks` directories as dumping grounds.
+
+A feature may have `components`, `hooks`, `schemas`, `types`, and `lib`, but create these only as needed. Do not expose internals across unrelated features; use explicit public entry points when useful.
+
+## Components
+
+Use functional components, semantic HTML, and composition. Components should focus on rendering, interaction, and local presentation state. Keep ZIP extraction, JSON parsing, schema validation, username normalization, and comparison algorithms outside components.
+
+Split components by responsibility, not arbitrary line counts. Avoid unnecessary abstraction and do not introduce `useMemo` or `useCallback` by default.
+
+## File import and supported formats
+
+Accept Instagram export ZIP archives and, when useful, individual follower/following JSON files. Discover files through supported name and structure patterns rather than one hardcoded ZIP directory.
+
+Support multiple follower files when an export splits the list. Do not double-count records or silently choose between ambiguous matching files. Clearly indicate which files were recognized.
+
+Treat every uploaded file as untrusted input. Check file types and reasonable size limits before parsing. For ZIP archives, limit entry count, extracted sizes, and decompression ratio; avoid unsafe paths. Read only necessary data, and do not execute imported content.
+
+Do not assume every Instagram export has identical JSON schemas. Parse as `unknown`, validate known variants with Zod, and produce an explicit, supported internal model. Never use `any` to silence parsing uncertainty.
+
+Reject missing, malformed, ambiguous, or incompatible datasets with understandable error messages. Never substitute an empty array when input validation fails.
+
+## Data normalization
+
+Extract usernames from supported export fields and normalize before comparisons. Trim surrounding whitespace and use consistent casing. Preserve meaningful periods and underscores. Deduplicate by normalized username.
+
+Preserve the display username separately where beneficial. Do not use display names as identifiers or compare full profile URLs if reliable usernames are available. Do not fabricate usernames from malformed data. Treat deleted/renamed accounts as potentially ambiguous and label them appropriately.
+
+## Comparison integrity — critical
+
+The core operation is `following - followers`, using normalized usernames and a `Set` (or equivalent) for efficient membership lookup. Aim for O(n + m) time complexity.
+
+Keep the comparison pure, deterministic, React-independent, and independently testable. Keep parsing, validation, normalization, comparison, and presentation as separate responsibilities.
+
+Check internal invariants, including:
+- following = mutual + not-following-back (after deduplication);
+- each returned non-follower exists in following and not in followers;
+- result usernames are unique.
+
+Export time windows are a critical source of false positives. Inspect available export metadata for date range and included categories. If an export covers only a limited period, explain that it may omit older follower relationships. Do not present its comparison as definitive. If completeness cannot be verified, explicitly state that limitation. Never interpret record timestamps as proof of a current relationship.
+
+The results reflect the provided Instagram export snapshot, not live Instagram data. Never claim real-time accuracy.
+
+## Privacy and security
+
+Process files and comparisons locally in the browser. Do not upload ZIPs, JSON, usernames, or analysis results to a backend, analytics provider, or other third party.
+
+Do not request Instagram credentials, session cookies, or tokens. Do not add scraping, automatic login, or automated unfollowing.
+
+Keep imported data in memory for the active session. Do not persist it to localStorage, sessionStorage, IndexedDB, or cookies by default. Provide a clear/reset action. Avoid logging user data. Revoke temporary object URLs when no longer needed.
+
+Avoid unsafe HTML rendering and `dangerouslySetInnerHTML`. Validate usernames before building Instagram profile URLs; generate URLs with trusted fixed origins and safely encoded paths. Treat all text from exports as untrusted.
+
+## State ownership
+
+Use local React state for upload, progress, errors, dialogs, and temporary interactions. Keep parsed data and comparison results in the smallest shared ownership scope needed; avoid copying large arrays through unrelated components.
+
+Use TanStack Router search params only for appropriate non-sensitive, shareable UI state (e.g., result sort or filter). Never place imported usernames or data lists in URLs. There is no server state initially: do not use TanStack Query simply to manage local files.
+
+## Routing
+
+Use TanStack Router file-based routing. Keep route files thin: params, validated search params, and page composition. Do not add business algorithms to route files. Do not manually edit generated route-tree files. Avoid unnecessary routes for a simple upload-to-results flow.
+
+## Interface and UX
+
+The central journey should be clear: select ZIP/JSON → validate → analyze → view results.
+
+Make these states explicit: idle, file selected, processing, invalid/incomplete export, analysis error, empty results, successful results.
+
+Show counts for following, followers, mutuals, and accounts that do not follow back. Offer search, sorting, safe profile links, and optional CSV export when justified. Clearly distinguish zero non-followers from invalid or missing data.
+
+Warn when the Instagram export may be incomplete, and offer guidance to export “Todo o período”. Never show a confident numeric result when required data was not validated.
+
+Use playful microcopy sparingly. Communicate privacy prominently: no password, no upload to a server. Do not imply affiliation with Instagram or Meta.
+
+## Styling and responsive design
+
+Use Tailwind consistently and shadcn/ui for appropriate primitives. Prefer restrained styling, whitespace, typography, clear hierarchy, and predictable spacing. Avoid decorative complexity that obscures the primary action.
+
+Design mobile-first and test small mobile, mobile, tablet, laptop, and desktop. Account for overflow, long usernames, result lists, dialogs, focus states, and touch targets.
+
+## Accessibility
+
+Use semantic HTML, real buttons and links, labeled file inputs, keyboard navigation, visible focus indicators, and clear validation feedback. Announce processing/error/result updates accessibly when appropriate. Do not use ARIA to replace correct semantics.
+
+## Performance
+
+Use efficient data structures. Avoid unnecessary rerenders and duplicated large arrays. For substantial ZIP extraction or heavy parsing, consider a Web Worker if actual UI responsiveness requires it. Use virtualization only when lists are large enough to justify it. Optimize based on measured needs, not guesses.
+
+## Testing
+
+Prioritize tests for user-visible outcomes and business correctness.
+
+Cover at least:
+- mutual and non-mutual follow relationships;
+- casing, duplicates, dots and underscores;
+- empty but valid lists;
+- malformed or missing follower/following files;
+- multiple follower JSON files;
+- alternate supported export schemas;
+- incomplete export warnings;
+- deleted/renamed-looking accounts;
+- accurate and consistent counts;
+- safe profile URL generation;
+- import reset and error states.
+
+Prefer pure unit tests for normalization/comparison and interaction tests for the upload/results flow. Avoid excessive snapshots.
+
+## Feature implementation process
+
+Before introducing a feature:
+1. Identify the owning domain and inspect existing patterns.
+2. Define input shape, validation, and failure cases.
+3. Decide where state belongs.
+4. Keep business transformations independent of UI.
+5. Reuse existing UI primitives.
+6. Implement responsive, accessible behavior.
+7. Test happy paths and failure/incomplete-data cases.
+8. Run formatting, ESLint, type checking, and relevant tests.
+
+Do not invent new conventions when current ones already solve the problem. Prioritize robust implementation over premature infrastructure.

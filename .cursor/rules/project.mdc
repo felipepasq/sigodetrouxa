@@ -1,0 +1,301 @@
+---
+description: Global engineering standards and architectural principles for Sigo de Trouxa, a privacy-first Instagram export comparison application.
+alwaysApply: true
+---
+
+# Project Engineering Rules
+
+Sigo de Trouxa is a production-quality web application that compares Instagram follower and following data imported by the user.
+
+The initial product is browser-only: it does not require a backend, database, authentication, scraping, or access to Instagram credentials.
+
+The codebase must prioritize, in order:
+
+1. correctness and data integrity;
+2. user privacy and security;
+3. readability;
+4. maintainability;
+5. type safety;
+6. clear ownership;
+7. testability;
+8. sustainable evolution.
+
+Do not optimize only for the fastest implementation. Avoid unnecessary enterprise complexity. Prefer the simplest design that preserves clear boundaries and can evolve safely.
+
+---
+
+# Technology and scope
+
+The established stack is:
+
+- React;
+- Vite;
+- TypeScript (strict mode);
+- TanStack Router;
+- Zod;
+- Tailwind CSS;
+- shadcn/ui.
+
+Use an established, actively maintained ZIP reader if necessary to process Instagram exports in the browser.
+
+Do not introduce a backend, database, authentication, server-side file processing, TanStack Query, state-management library, or monorepo infrastructure without a concrete requirement.
+
+Follow the repository's actual directory structure. Do not assume `apps/web`, `apps/api`, `apps/scraper`, or `packages/*` exist.
+
+Feature-specific conventions belong in the frontend rule; this rule establishes global principles without duplicating every implementation detail.
+
+---
+
+# TypeScript
+
+Use strict TypeScript.
+
+- Treat imported files and parsed JSON as `unknown` until validated.
+- Prefer inference, explicit domain types, discriminated unions where appropriate, and safe narrowing.
+- Infer types from authoritative Zod schemas when practical.
+- Use generics when they improve safety or express a real reusable contract.
+- Avoid `any`, unsafe casts, `as unknown as`, and TypeScript error suppression.
+- Do not duplicate types for the same underlying contract.
+- Do not bypass the type system merely to satisfy the compiler.
+
+If an exception is unavoidable, document the specific reason and keep its scope minimal.
+
+---
+
+# Code quality
+
+Write code that is easy to understand without extensive commentary.
+
+Prefer:
+
+- descriptive names;
+- cohesive functions;
+- explicit control flow;
+- early returns;
+- composition;
+- single responsibility;
+- pure functions for transformations and comparisons.
+
+Avoid:
+
+- deeply nested conditionals;
+- large functions with unrelated responsibilities;
+- vague identifiers when precise names are available;
+- ambiguous boolean arguments;
+- hidden side effects;
+- premature abstraction;
+- clever code that sacrifices readability.
+
+Optimize for clarity, not minimum line count.
+
+---
+
+# Architecture and ownership
+
+Keep business behavior in the feature or domain that owns it.
+
+Maintain distinct responsibilities for:
+
+- reading and extracting exported files;
+- validating and normalizing records;
+- analyzing follower relationships;
+- presenting results.
+
+Do not combine parsing, comparison, and rendering in one component or function.
+
+Move code into shared areas only when there is actual reuse and a coherent shared concept.
+
+Avoid architecture based on hypothetical requirements. Do not add CQRS, event buses, command handlers, elaborate DDD layers, generic repositories, or other heavyweight patterns without concrete justification.
+
+Before introducing a major abstraction, explain why the existing approach is insufficient.
+
+---
+
+# Critical correctness requirements
+
+The core comparison is the set difference:
+
+`following - followers`
+
+A username is classified as not following back only when it is present in the imported following dataset and absent from a sufficiently complete, valid imported followers dataset.
+
+- Normalize usernames consistently; preserve meaningful characters such as dots and underscores.
+- Do not compare display names or assume profile URLs are unique identifiers when usernames are available.
+- Deduplicate records before calculating totals.
+- Support multiple follower files where the supported export format uses them.
+- Never treat a missing, malformed, or unsupported followers file as an empty list.
+- Detect inconsistent, restricted, or potentially incomplete exports where possible.
+- Inspect available export metadata, including time range, without assuming it is always present or definitive.
+- Warn clearly when completeness cannot be established; do not claim live or guaranteed accuracy.
+- Do not conflate export timestamps with the current state of a follow relationship.
+- Ensure counts and derived results are internally consistent.
+
+Results describe the exported snapshot, not live Instagram data. Never promise real-time correctness from a static export.
+
+---
+
+# Privacy and security
+
+All user-provided Instagram export processing must happen locally in the browser.
+
+Never:
+
+- ask for Instagram passwords, session cookies, or tokens;
+- upload archives, follower lists, usernames, or results to a server;
+- transmit imported personal data to analytics, monitoring, or third-party services;
+- persist imported data in browser storage by default;
+- log complete personal datasets;
+- implement automated Instagram login, scraping, or bulk unfollow actions as part of the initial scope.
+
+Keep imported data in memory only as needed. Provide a way to clear it.
+
+Treat all files as untrusted input. Validate structure and enforce reasonable limits on archive size, entry count, and decompressed content to mitigate corrupted files and ZIP bombs.
+
+Use safe URL construction for Instagram profile links. Never execute imported scripts or inject untrusted HTML into the DOM.
+
+Do not include sensitive imported data in URLs or browser telemetry.
+
+---
+
+# Dependencies
+
+Before adding a dependency, inspect existing project capabilities.
+
+Prefer established libraries already in use. Avoid packages for trivial functionality.
+
+Evaluate new dependencies for:
+
+- maintenance and security;
+- client bundle size;
+- runtime and memory impact;
+- TypeScript support;
+- compatibility with browser-only processing;
+- actual necessity.
+
+Do not introduce overlapping libraries without a strong reason.
+
+---
+
+# Error handling and user feedback
+
+Never silently swallow an error or manufacture successful results from invalid data.
+
+Differentiate actionable cases such as:
+
+- missing followers or following files;
+- unsupported export format;
+- malformed JSON;
+- corrupted ZIP;
+- limits exceeded;
+- incomplete or uncertain export coverage;
+- valid input with no non-followers.
+
+Show concise, helpful messages in Portuguese. Keep implementation details out of user-facing errors.
+
+Provide deliberate loading, success, empty, and error states for meaningful processing steps.
+
+Do not claim an analysis succeeded until the files have been validated and the comparison is complete.
+
+---
+
+# Environment configuration
+
+Use Vite environment configuration only when necessary.
+
+Centralize access and validate required environment values.
+
+Never place secrets in `VITE_` environment variables: these are exposed in client bundles.
+
+The initial browser-only application should not require private service credentials.
+
+---
+
+# Performance
+
+Prefer efficient comparisons using `Set` or `Map`, with approximately O(n + m) processing for normalized datasets.
+
+Avoid premature memoization or unnecessary state-management abstractions.
+
+Consider asynchronous or worker-based processing only when measured import size or UI responsiveness warrants it.
+
+Avoid unnecessary copies of large imported datasets. Release temporary resources and object URLs when finished.
+
+---
+
+# Testing
+
+Tests must protect meaningful behavior rather than implementation details.
+
+Prioritize:
+
+- follower/following set difference;
+- case normalization and duplicates;
+- dots, underscores, and other supported username characters;
+- exports with multiple follower files;
+- malformed or missing JSON;
+- incomplete or restricted exports;
+- empty but valid datasets;
+- safe profile-link construction;
+- the import-to-results user flow.
+
+Include fixtures that reproduce false positives from incomplete follower datasets.
+
+Prefer deterministic unit tests for pure domain functions and focused integration tests for critical interactions.
+
+Do not write tests solely to increase coverage metrics or rely on excessive snapshots.
+
+---
+
+# Accessibility and presentation
+
+The product can be playful, but accuracy, readability, and trust come first.
+
+Use semantic HTML, keyboard-accessible controls, visible focus, accessible labels, and mobile-first layouts.
+
+Never communicate critical status only through color or emojis.
+
+Make privacy claims accurate: only state that data stays in the browser if the implementation actually guarantees that behavior.
+
+---
+
+# Refactoring and change scope
+
+Do not refactor unrelated code while implementing a feature.
+
+Before a large refactor:
+
+1. identify the existing problem;
+2. explain why the change is necessary;
+3. outline migration or compatibility impact;
+4. preserve behavior unless an intentional change is specified.
+
+Keep commits and changes scoped and reviewable.
+
+---
+
+# Generated code and comments
+
+Do not manually modify generated files unless the generator explicitly requires it.
+
+Keep business logic out of generated artifacts.
+
+Prefer self-explanatory code. Add comments only for non-obvious constraints, tradeoffs, or why a decision exists. Do not write comments that merely restate the code.
+
+---
+
+# Implementation workflow
+
+Before making a significant change:
+
+1. inspect the existing repository and conventions;
+2. identify the owning feature and necessary boundaries;
+3. determine the smallest correct implementation;
+4. identify data-quality, privacy, and security implications;
+5. implement using established patterns;
+6. run formatting, linting, and TypeScript checks;
+7. run relevant tests;
+8. review edge cases and avoid unnecessary complexity.
+
+Do not claim checks passed unless they were actually run.
+
+When introducing a new concept or dependency, briefly explain what it solves and why it belongs in this project. The primary developer is experienced with frontend development; avoid lengthy explanations of basic React or TypeScript concepts unless requested.
