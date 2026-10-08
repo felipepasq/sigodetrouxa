@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 
 import { AppShell } from '@/components/layout/app-shell'
@@ -8,8 +9,11 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+      <Analytics />
+    </>
   )
 }
