@@ -19,7 +19,7 @@ export function Hero() {
       </p>
       <div className="mt-8">
         <Button asChild size="lg" className="h-12 px-6 text-base">
-          <a href="#importar">Descobrir meus trouxas</a>
+          <a href="#importar">Ver quem se acha</a>
         </Button>
       </div>
       <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground">

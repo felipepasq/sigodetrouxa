@@ -20,7 +20,7 @@ describe('ExportTutorial', () => {
       expect(image).toHaveAttribute('src', step.image.src)
     }
 
-    expect(screen.getAllByRole('img')).toHaveLength(9)
+    expect(screen.getAllByRole('img')).toHaveLength(11)
     expect(screen.getByRole('link', { name: 'Enviar o arquivo' })).toHaveAttribute(
       'href',
       '#importar',

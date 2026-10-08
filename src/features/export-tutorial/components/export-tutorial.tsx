@@ -37,7 +37,7 @@ export function ExportTutorial() {
                 <p className="mt-3 leading-relaxed text-muted-foreground">
                   {step.instruction}
                 </p>
-                {step.number === 10 ? (
+                {step.number === tutorialSteps.length ? (
                   <a
                     href="#importar"
                     className="mt-4 inline-flex rounded-sm text-sm font-medium text-foreground underline decoration-primary underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
