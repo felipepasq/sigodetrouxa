@@ -4,6 +4,7 @@ import { downloadTextFile, notFollowingBackCsv } from '@/features/analysis-resul
 import { instagramProfileUrl } from '@/features/analysis-results/lib/profile-url'
 import { nonFollowerPercentage, type FollowAnalysis } from '@/features/follow-analysis/lib/compare-follows'
 import { Button } from '@/components/ui/button'
+import { useCopy } from '@/lib/i18n/use-locale'
 
 type ResultsPanelProps = {
   analysis: FollowAnalysis
@@ -24,6 +25,7 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState(false)
+  const copy = useCopy()
   const percentage = nonFollowerPercentage(analysis)
   const normalizedQuery = query.trim().toLowerCase()
   const visible = analysis.notFollowingBack
@@ -37,14 +39,14 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
         account.label.toLowerCase().includes(normalizedQuery)
       )
     })
-    .sort((left, right) => left.label.localeCompare(right.label, 'pt-BR') * (order === 'asc' ? 1 : -1))
+    .sort((left, right) => left.label.localeCompare(right.label, copy.sortLocale) * (order === 'asc' ? 1 : -1))
 
   const headline =
     analysis.following.length === 0
-      ? 'Neste arquivo, você não segue ninguém.'
+      ? copy.resultEmptyFollowing
       : analysis.notFollowingBack.length === 0
-        ? 'Milagre! Todo mundo retribui seu carinho. ❤️'
-        : `Encontramos ${analysis.notFollowingBack.length} ${analysis.notFollowingBack.length === 1 ? 'pessoa que não retribui' : 'pessoas que não retribuem'} seu carinho. 🤡`
+        ? copy.resultEveryoneFollows
+        : copy.resultFound(analysis.notFollowingBack.length)
 
   async function copyUsername(username: string) {
     try {
@@ -61,44 +63,38 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
     <section id="resultado" className="scroll-mt-20 py-8" aria-live="polite">
       <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{headline}</h2>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        {percentage}% de quem você segue não segue de volta. Isso descreve o arquivo
-        exportado, não o Instagram agora.
+        {copy.resultSummary(percentage)}
       </p>
 
       <ul className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Você segue" value={analysis.following.length} />
-        <Stat label="Te seguem" value={analysis.followers.length} />
-        <Stat label="Mútuos" value={analysis.mutual.length} />
-        <Stat label="Não te seguem" value={analysis.notFollowingBack.length} />
+        <Stat label={copy.statFollowing} value={analysis.following.length} />
+        <Stat label={copy.statFollowers} value={analysis.followers.length} />
+        <Stat label={copy.statMutual} value={analysis.mutual.length} />
+        <Stat label={copy.statNotFollowing} value={analysis.notFollowingBack.length} />
       </ul>
 
       <div className="mt-6 space-y-2 text-sm leading-relaxed text-muted-foreground">
         <p>
           {analysis.completeness === 'restricted'
-            ? 'O arquivo indica um intervalo de datas limitado. A comparação não é definitiva: seguidores antigos podem ficar de fora.'
-            : 'Não deu para confirmar, por este arquivo, se a exportação começa no início da conta. Se o intervalo não foi Desde o início, podem aparecer pessoas que te seguem.'}
+            ? copy.completenessRestricted
+            : copy.completenessUnverified}
         </p>
         {analysis.emptyFollowers ? (
-          <p>A lista de seguidores chegou vazia. Confira se o arquivo exportado é o de seguidores.</p>
+          <p>{copy.emptyFollowers}</p>
         ) : null}
         {analysis.ignoredRecords > 0 ? (
           <p>
-            {analysis.ignoredRecords}{' '}
-            {analysis.ignoredRecords === 1 ? 'registro foi ignorado' : 'registros foram ignorados'}{' '}
-            porque não tinha um usuário válido.
+            {copy.ignoredRecords(analysis.ignoredRecords)}
           </p>
         ) : null}
-        <p>Arquivos usados: {analysis.recognizedFiles.join(', ')}.</p>
-        <p>
-          Observação: alguns usuários podem ter desativado a conta. Eles
-          continuam nesta lista, mas o perfil pode não abrir.
-        </p>
+        <p>{copy.filesUsed(analysis.recognizedFiles.join(', '))}</p>
+        <p>{copy.deactivatedNote}</p>
       </div>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="w-full sm:max-w-sm">
           <label htmlFor="buscar-usuario" className="text-sm font-medium">
-            Buscar usuário
+            {copy.searchLabel}
           </label>
           <input
             id="buscar-usuario"
@@ -119,29 +115,29 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
               setOrder((current) => (current === 'asc' ? 'desc' : 'asc'))
             }}
           >
-            {order === 'asc' ? 'A–Z' : 'Z–A'}
+            {order === 'asc' ? copy.sortAsc : copy.sortDesc}
           </Button>
           <Button
             type="button"
             variant="outline"
             disabled={analysis.notFollowingBack.length === 0}
             onClick={() => {
-              downloadTextFile('nao-seguem-de-volta.csv', notFollowingBackCsv(analysis.notFollowingBack))
+              downloadTextFile(copy.csvName, notFollowingBackCsv(analysis.notFollowingBack))
             }}
           >
-            Baixar CSV
+            {copy.downloadCsv}
           </Button>
         </div>
       </div>
 
       {copyError ? (
         <p role="alert" className="mt-4 text-sm text-destructive">
-          Não foi possível copiar o usuário.
+          {copy.copyFailed}
         </p>
       ) : null}
 
       {visible.length === 0 && normalizedQuery ? (
-        <p className="mt-6 text-sm text-muted-foreground">Nenhum usuário com esse nome.</p>
+        <p className="mt-6 text-sm text-muted-foreground">{copy.noSearchMatch}</p>
       ) : visible.length > 0 ? (
         <ul className="mt-4 divide-y divide-border">
           {visible.map((account) => {
@@ -170,7 +166,7 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
                     void copyUsername(account.username)
                   }}
                 >
-                  {copied === account.username ? 'Copiado' : 'Copiar'}
+                  {copied === account.username ? copy.copied : copy.copy}
                 </Button>
               </li>
             )
@@ -179,7 +175,7 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
       ) : null}
 
       <Button type="button" className="mt-8" onClick={onExportAgain}>
-        Exportar de novo
+        {copy.exportAgain}
       </Button>
     </section>
   )

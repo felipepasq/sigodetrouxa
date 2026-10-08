@@ -1,6 +1,7 @@
 import { strFromU8, unzipSync, type UnzipFileInfo } from 'fflate'
 
 import { isFollowersFile, isFollowingFile } from '@/features/follow-analysis/lib/accounts'
+import type { ReadError } from '@/features/instagram-import/lib/user-messages'
 
 const MAX_ZIP_ENTRIES = 20_000
 const MAX_JSON_FILES = 80
@@ -15,7 +16,7 @@ export type ExportDocument = {
 
 export type ReadFailure = {
   ok: false
-  message: string
+  error: ReadError
 }
 
 export type ReadSuccess = {
@@ -41,7 +42,7 @@ function parseJson(name: string, text: string): ExportDocument | ReadFailure {
   } catch {
     return {
       ok: false,
-      message: `${name} não é um JSON válido.`,
+      error: { code: 'invalid-json', name },
     }
   }
 }
@@ -50,7 +51,7 @@ function readZip(bytes: Uint8Array, archiveName: string): ReadSuccess | ReadFail
   let entries = 0
   let jsonFiles = 0
   let totalBytes = 0
-  let failure: string | null = null
+  let failure: ReadError | null = null
 
   let unzipped: Record<string, Uint8Array>
   try {
@@ -58,12 +59,12 @@ function readZip(bytes: Uint8Array, archiveName: string): ReadSuccess | ReadFail
       filter(file: UnzipFileInfo) {
         entries += 1
         if (entries > MAX_ZIP_ENTRIES) {
-          failure = 'Esse ZIP tem entradas demais.'
+          failure = { code: 'zip-too-many-entries' }
           return false
         }
 
         if (isUnsafePath(file.name)) {
-          failure = 'O ZIP tem um caminho de arquivo que não pode ser lido.'
+          failure = { code: 'zip-unsafe-path' }
           return false
         }
 
@@ -78,19 +79,19 @@ function readZip(bytes: Uint8Array, archiveName: string): ReadSuccess | ReadFail
           file.originalSize > MAX_JSON_BYTES ||
           file.originalSize / compressed > MAX_COMPRESSION_RATIO
         ) {
-          failure = 'O ZIP passa dos limites de tamanho aceitos.'
+          failure = { code: 'zip-limits' }
           return false
         }
 
         totalBytes += file.originalSize
         if (totalBytes > MAX_TOTAL_JSON_BYTES) {
-          failure = 'O ZIP passa dos limites de tamanho aceitos.'
+          failure = { code: 'zip-limits' }
           return false
         }
 
         const important = isFollowersFile(file.name) || isFollowingFile(file.name)
         if (important && file.compression !== 0 && file.compression !== 8) {
-          failure = 'Um JSON da exportação usa uma compressão que não dá para ler aqui.'
+          failure = { code: 'zip-compression' }
           return false
         }
 
@@ -100,12 +101,12 @@ function readZip(bytes: Uint8Array, archiveName: string): ReadSuccess | ReadFail
   } catch {
     return {
       ok: false,
-      message: `Não foi possível abrir ${archiveName}. O arquivo pode estar corrompido.`,
+      error: { code: 'zip-corrupt', name: archiveName },
     }
   }
 
   if (failure) {
-    return { ok: false, message: failure }
+    return { ok: false, error: failure }
   }
 
   const documents: ExportDocument[] = []
@@ -120,7 +121,7 @@ function readZip(bytes: Uint8Array, archiveName: string): ReadSuccess | ReadFail
   if (documents.length === 0) {
     return {
       ok: false,
-      message: 'O ZIP não tem os JSON de seguidores e seguindo.',
+      error: { code: 'zip-missing-lists' },
     }
   }
 
@@ -146,7 +147,7 @@ export async function readExportFiles(
     if (file.size > MAX_JSON_BYTES) {
       return {
         ok: false,
-        message: `${file.name} é grande demais para ler neste navegador.`,
+        error: { code: 'json-too-large', name: file.name },
       }
     }
 

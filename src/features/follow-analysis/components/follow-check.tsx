@@ -4,14 +4,17 @@ import { ResultsPanel } from '@/features/analysis-results/components/results-pan
 import type { FollowAnalysis } from '@/features/follow-analysis/lib/compare-follows'
 import { analyzeImport } from '@/features/instagram-import/lib/analyze-import'
 import { ImportPanel } from '@/features/instagram-import/components/import-panel'
+import { describeAnalyzeError, type AnalyzeError } from '@/features/instagram-import/lib/user-messages'
+import { useLocale } from '@/lib/i18n/use-locale'
 
 type Phase =
   | { status: 'idle' }
   | { status: 'processing' }
-  | { status: 'error'; message: string }
+  | { status: 'error'; error: AnalyzeError }
   | { status: 'ready'; analysis: FollowAnalysis }
 
 export function FollowCheck() {
+  const locale = useLocale()
   const [phase, setPhase] = useState<Phase>({ status: 'idle' })
   const [resetToken, setResetToken] = useState(0)
   const requestId = useRef(0)
@@ -35,7 +38,7 @@ export function FollowCheck() {
     }
 
     if (!outcome.ok) {
-      setPhase({ status: 'error', message: outcome.message })
+      setPhase({ status: 'error', error: outcome.error })
       return
     }
 
@@ -51,7 +54,7 @@ export function FollowCheck() {
       <ImportPanel
         key={resetToken}
         busy={phase.status === 'processing'}
-        errorMessage={phase.status === 'error' ? phase.message : null}
+        errorMessage={phase.status === 'error' ? describeAnalyzeError(phase.error, locale) : null}
         onAccepted={(files) => {
           void onAccepted(files)
         }}

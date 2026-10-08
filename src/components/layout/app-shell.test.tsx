@@ -32,4 +32,28 @@ describe('casca da aplicação', () => {
       '#como-exportar',
     )
   })
+
+  it('mostra a página em inglês quando lang=en', async () => {
+    const router = createAppRouter(
+      createMemoryHistory({
+        initialEntries: ['/?lang=en'],
+      }),
+    )
+
+    await router.load()
+
+    render(<RouterProvider router={router} />)
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: "You follow them. They think they're famous.",
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'How to export' })).toHaveAttribute(
+      'href',
+      '#como-exportar',
+    )
+    expect(document.documentElement.lang).toBe('en')
+  })
 })

@@ -11,10 +11,11 @@ import {
   type FollowAnalysis,
 } from '@/features/follow-analysis/lib/compare-follows'
 import { readExportFiles, type ExportDocument } from '@/features/instagram-import/lib/read-export'
+import type { AnalyzeError } from '@/features/instagram-import/lib/user-messages'
 
 export type AnalyzeOutcome =
   | { ok: true; analysis: FollowAnalysis }
-  | { ok: false; message: string }
+  | { ok: false; error: AnalyzeError }
 
 function hasBothLists(data: unknown) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -38,7 +39,7 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
     if (hasBothLists(document.data)) {
       return {
         ok: false,
-        message: `${name} mistura listas de seguidores e de seguindo.`,
+        error: { code: 'mixed-lists', name },
       }
     }
 
@@ -50,7 +51,7 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
       if (followersByName || followingByName) {
         return {
           ok: false,
-          message: `${name} não está num formato de seguidores ou seguindo que a gente reconhece.`,
+          error: { code: 'unrecognized', name },
         }
       }
       if (findRestrictedRange(document.data)) {
@@ -63,7 +64,7 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
       if (parsed.kind === 'following') {
         return {
           ok: false,
-          message: `${name} mistura listas de seguidores e de seguindo.`,
+          error: { code: 'mixed-lists', name },
         }
       }
       sawFollowers = true
@@ -76,7 +77,7 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
       if (sawFollowing) {
         return {
           ok: false,
-          message: 'Há mais de um arquivo de seguindo. Envie só um.',
+          error: { code: 'multiple-following' },
         }
       }
       sawFollowing = true
@@ -93,15 +94,14 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
   if (!sawFollowers) {
     return {
       ok: false,
-      message:
-        'Não encontrei a lista de seguidores. Sem ela, não dá para dizer quem não te segue de volta.',
+      error: { code: 'missing-followers' },
     }
   }
 
   if (!sawFollowing) {
     return {
       ok: false,
-      message: 'Não encontrei a lista de quem você segue.',
+      error: { code: 'missing-following' },
     }
   }
 
@@ -113,7 +113,7 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
   if (compared.mutual.length + compared.notFollowingBack.length !== compared.following.length) {
     return {
       ok: false,
-      message: 'A comparação ficou inconsistente e foi interrompida.',
+      error: { code: 'inconsistent' },
     }
   }
 
@@ -132,7 +132,7 @@ function collect(documents: readonly ExportDocument[]): AnalyzeOutcome {
 export async function analyzeImport(files: readonly File[]): Promise<AnalyzeOutcome> {
   const read = await readExportFiles(files)
   if (!read.ok) {
-    return read
+    return { ok: false, error: read.error }
   }
 
   return collect(read.documents)

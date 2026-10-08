@@ -1,3 +1,5 @@
+import type { Locale } from '@/lib/i18n/locale'
+
 export const MAX_IMPORT_FILE_BYTES = 50 * 1024 * 1024
 export const MAX_IMPORT_FILE_COUNT = 24
 
@@ -63,18 +65,28 @@ export function validateImportFiles(files: readonly File[]): ImportValidation {
   return { ok: true, files: [...files] }
 }
 
-export function describeImportIssue(issue: ImportFileIssue) {
+export function describeImportIssue(issue: ImportFileIssue, locale: Locale = 'pt') {
+  const en = locale === 'en'
+
   switch (issue.code) {
     case 'unsupported-type':
-      return `${issue.fileName} não é um ZIP nem um JSON. Envie a exportação do Instagram.`
+      return en
+        ? `${issue.fileName} is not a ZIP or a JSON file. Send the Instagram export.`
+        : `${issue.fileName} não é um ZIP nem um JSON. Envie a exportação do Instagram.`
     case 'too-large':
-      return `${issue.fileName} é grande demais. O limite é 50 MB. Exporte só Seguidores e Seguindo.`
+      return en
+        ? `${issue.fileName} is too large. The limit is 50 MB. Export only Followers and Following.`
+        : `${issue.fileName} é grande demais. O limite é 50 MB. Exporte só Seguidores e Seguindo.`
     case 'too-many':
-      return `Envie no máximo ${issue.maxCount} arquivos.`
+      return en
+        ? `Send at most ${issue.maxCount} files.`
+        : `Envie no máximo ${issue.maxCount} arquivos.`
     case 'mixed':
-      return 'Envie um único ZIP ou somente os arquivos JSON.'
+      return en
+        ? 'Send a single ZIP or only the JSON files.'
+        : 'Envie um único ZIP ou somente os arquivos JSON.'
     case 'multiple-archives':
-      return 'Envie apenas um arquivo ZIP.'
+      return en ? 'Send only one ZIP file.' : 'Envie apenas um arquivo ZIP.'
   }
 }
 

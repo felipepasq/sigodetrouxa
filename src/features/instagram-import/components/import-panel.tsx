@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent, type DragEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { useCopy, useLocale } from '@/lib/i18n/use-locale'
 import { cn } from '@/lib/utils'
 import {
   describeImportIssue,
@@ -29,6 +30,8 @@ export function ImportPanel({
 }: ImportPanelProps) {
   const [state, setState] = useState<ImportState>({ status: 'idle' })
   const [dragging, setDragging] = useState(false)
+  const copy = useCopy()
+  const locale = useLocale()
 
   function commit(list: FileList | readonly File[]) {
     const result = validateImportFiles([...list])
@@ -64,22 +67,23 @@ export function ImportPanel({
   return (
     <section id="importar" className="scroll-mt-20 py-8">
       <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-        Envie a exportação
+        {copy.importTitle}
       </h2>
       <p className="mt-3 max-w-2xl leading-relaxed text-muted-foreground">
-        Use o ZIP do Instagram ou os JSON de seguidores e de seguindo. Exporte
-        só <strong className="font-medium text-foreground">Seguidores e Seguindo</strong>,
-        no formato <strong className="font-medium text-foreground">JSON</strong>,
-        com o intervalo{' '}
-        <strong className="font-medium text-foreground">Desde o início</strong>.
+        {copy.importLeadBefore}{' '}
+        <strong className="font-medium text-foreground">{copy.importFollowersAndFollowing}</strong>,
+        {locale === 'en' ? ' in ' : ' no formato '}
+        <strong className="font-medium text-foreground">{copy.importFormat}</strong>,
+        {locale === 'en' ? ' with the range ' : ' com o intervalo '}
+        <strong className="font-medium text-foreground">{copy.importRange}</strong>.
       </p>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        O arquivo é um retrato da exportação, não o Instagram ao vivo.{' '}
+        {copy.importSnapshot}{' '}
         <a
           href="#como-exportar"
           className="rounded-sm text-foreground underline decoration-primary underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Veja como exportar
+          {copy.importSeeHow}
         </a>
         .
       </p>
@@ -104,10 +108,10 @@ export function ImportPanel({
         )}
       >
         <span className="text-base font-medium">
-          Arraste o ZIP ou os JSON para cá
+          {copy.importDrop}
         </span>
         <span className="mt-2 text-sm text-muted-foreground">
-          ou toque para escolher os arquivos
+          {copy.importChoose}
         </span>
         <input
           id="instagram-export"
@@ -122,11 +126,11 @@ export function ImportPanel({
       <div aria-live="polite" className="mt-4">
         {state.status === 'invalid' ? (
           <p role="alert" className="text-sm text-destructive">
-            {describeImportIssue(state.issue)}
+            {describeImportIssue(state.issue, locale)}
           </p>
         ) : null}
         {busy ? (
-          <p className="text-sm text-muted-foreground">Lendo a exportação neste navegador…</p>
+          <p className="text-sm text-muted-foreground">{copy.importReading}</p>
         ) : null}
         {errorMessage ? (
           <p role="alert" className="text-sm text-destructive">
@@ -137,10 +141,7 @@ export function ImportPanel({
         {state.status === 'ready' ? (
           <div className="rounded-2xl border border-border bg-card p-4">
             <p className="text-sm font-medium">
-              {state.files.length === 1
-                ? 'Arquivo recebido neste navegador.'
-                : 'Arquivos recebidos neste navegador.'}{' '}
-              Nada foi enviado para um servidor.
+              {state.files.length === 1 ? copy.importReceivedOne : copy.importReceivedMany}
             </p>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               {state.files.map((file) => (
@@ -159,7 +160,7 @@ export function ImportPanel({
                 onClear?.()
               }}
             >
-              Limpar e começar de novo
+              {copy.importClear}
             </Button>
           </div>
         ) : null}
