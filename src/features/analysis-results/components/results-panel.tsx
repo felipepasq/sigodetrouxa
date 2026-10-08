@@ -139,9 +139,6 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
           Não foi possível copiar o usuário.
         </p>
       ) : null}
-      {copied ? (
-        <p className="mt-4 text-sm text-muted-foreground">@{copied} copiado.</p>
-      ) : null}
 
       {visible.length === 0 && normalizedQuery ? (
         <p className="mt-6 text-sm text-muted-foreground">Nenhum usuário com esse nome.</p>
@@ -167,12 +164,13 @@ export function ResultsPanel({ analysis, onExportAgain }: ResultsPanelProps) {
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
+                  aria-live="polite"
                   onClick={() => {
                     void copyUsername(account.username)
                   }}
                 >
-                  Copiar
+                  {copied === account.username ? 'Copiado' : 'Copiar'}
                 </Button>
               </li>
             )

@@ -68,6 +68,10 @@ export function normalizeUsername(value: string) {
   return trimmed.toLowerCase()
 }
 
+function isDeletedPlaceholder(username: string) {
+  return /^_+deleted_+/.test(username)
+}
+
 function usernameFromHref(href: string) {
   try {
     const url = new URL(href)
@@ -127,7 +131,7 @@ export function readAccounts(records: Relationship[]): AccountRead {
       continue
     }
 
-    if (seen.has(account.username)) {
+    if (isDeletedPlaceholder(account.username) || seen.has(account.username)) {
       continue
     }
 
